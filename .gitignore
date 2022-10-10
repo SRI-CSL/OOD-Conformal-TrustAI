@@ -1,0 +1,10 @@
+*.pth
+*.p
+**/data
+**/stats
+**/results
+*.npy
+*.tar.gz
+*.png
+**/__pycache__
+*.pyc 
