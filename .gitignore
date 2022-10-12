@@ -1,6 +1,7 @@
 *.pth
 *.p
 **/data
+**/dataset
 **/stats
 **/results
 *.npy
