@@ -237,7 +237,7 @@ def get_intermediate_features_inference(net, device, data_loader, num_output):
     return list_features
 
 def get_deviations_gram(net, device, data_loader, mins, maxs, power, num_output):
-
+    torch.cuda.empty_cache()
     preds = []
     num_classes  =10
     confs = []
@@ -257,6 +257,7 @@ def get_deviations_gram(net, device, data_loader, mins, maxs, power, num_output)
     for _, data in enumerate(data_loader, 0):
         img1 = data[0].to(device)
         labels = data[1]
+        torch.cuda.empty_cache()
         y, out_features = net.feature_list(img1)
         for i in range(num_output):
             out_features[i] = out_features[i].view(out_features[i].size(0), out_features[i].size(1), -1)

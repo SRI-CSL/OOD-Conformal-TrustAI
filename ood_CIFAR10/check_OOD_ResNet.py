@@ -240,13 +240,12 @@ def get_all_stats(net, device, stats_list, trial):
     flag = 0
     net.eval()
 
-    print(stats_list)
+    # print(stats_list)
 
     if not os.path.exists('stats'):
         os.mkdir('stats')
 
     if 'Mahalanobis' in stats_list or  'Mahalanobis1' in stats_list:
-        print('mahala')
         if not os.path.exists('stats/Mahalanobis'):
             os.mkdir('stats/Mahalanobis')
         
@@ -550,6 +549,54 @@ def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
     
     return tnr_list, fpr_list
 
+def get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis']):
+
+    # print('Running Multiple testing with {}'.format(stats_list))
+    tnr_list = []
+    fpr_list = []
+    
+    alpha_list = np.arange(0.01,1,0.01)
+    # alpha_list = [0.01, 0.02, 0.03, 0.04, 0.05]
+    for a in alpha_list:
+        
+        sum_K = 0
+        for i in range(len(stats_list)):
+            sum_K += 1/(1+i)
+        alpha_prime = a / (2 * sum_K)
+        
+        
+        trial = 0
+        cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list, trial)
+        num_stats = np.shape(cal_set_stats)[1]
+        in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
+        ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
+        for i in range(num_stats):
+            in_p_values[:,i] = calc_p_values(in_set_stats[:,i], cal_set_stats[:,i])
+            ood_p_values[:,i] = calc_p_values(ood_set_stats[:,i], cal_set_stats[:,i])
+
+        in_p_values.sort(axis = 1)
+        ood_p_values.sort(axis = 1)
+        val_alphas = np.zeros((num_stats))
+        alpha = alpha_prime
+        
+        consts = np.zeros((num_stats))
+        for i in range(num_stats):
+            consts[i] = alpha*(i+1)/num_stats
+                #consts[i] = max(alpha*(i+1)/n,val_alphas[i]*(i+1)/n)
+        
+        ood_bh_output = bh(num_stats,consts,ood_p_values)
+        tnr = np.mean(ood_bh_output)*100
+        in_dist_bh_output = bh(num_stats,consts,in_p_values)
+        fpr = np.mean(in_dist_bh_output)*100
+        # print(tnr)
+        print(fpr)
+        tnr_list.append(tnr)
+        fpr_list.append(fpr)
+
+    with open('CIFAR10_ResNet_FPR.npy', 'wb') as f:
+        np.save(f, fpr_list)
+    return tnr_list, fpr_list
+
 def get_auroc_multiple_test(net, device, stats_list = ['Mahalanobis']):
 
     print('Getting Multiple testing AUROC with {}'.format(stats_list))
@@ -717,7 +764,9 @@ def get_auroc_Mahalanobis(net, device):
     return fpr_list, tpr_list
 
 if __name__ == "__main__":
-    check_OOD_energy(net, device)
+    #check_OOD_energy(net, device)
+    tnr_list, fpr_list = get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis', 'gram','energy'])
+    print(fpr_list)
     # if not os.path.exists('results'):
     #     os.mkdir('results')
     # if not os.path.exists('results/ResNet34_CIFAR10.csv'):

@@ -16,6 +16,7 @@ import torch.utils.data
 import torchvision
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from torchvision import transforms, utils
+from torchvision import datasets
 import torch.nn.functional as F
 from torch.autograd import Variable
 import logging
@@ -28,8 +29,6 @@ import pickle
 
 from csv import writer
 
-from avt_resnet import Regressor
-from recursive_test import rec 
 
 from dataset import CIFAR10
 from ood_dataset import CIFAR_OOD
@@ -114,7 +113,7 @@ model_file_path = opt.net
 # net = DenseNet3(100, num_classes=num_classes).to(device)
 # net.load()
 # net.to(device)
-net = torch.load('densenet_cifar10_new.pth', map_location = device)
+net = torch.load('densenet_cifar10.pth', map_location = device)
 net.to(device)
 net.eval()
 inputs = torch.rand((1, 3, 32, 32)).to(device)
@@ -130,66 +129,59 @@ mahala_fpr_list = []
 # if opt.net != '':
 #     net.load_state_dict(torch.load(opt.net, map_location=device))
 
-ood_test_dataset = CIFAR_OOD(dataset_name=opt.ood_dataset, shift=opt.shift, scale=(opt.shrink, opt.enlarge), fillcolor=(128,128,128), download=True, train=False, resample=PIL.Image.BILINEAR,
-                    matrix_transform=transforms.Compose([
-                        transforms.Normalize((0., 0., 16., 0., 0., 16., 0., 0.), (1., 1., 20., 1., 1., 20., 0.015, 0.015)),
-                    ]),
+in_test_dataset, ood_test_dataset, cal_set, cal_dataloader, in_test_dataloader, out_test_dataloader = None, None, None, None, None, None
 
-                    transform_pre=None,
+complete_train_dataset = datasets.CIFAR10('data', train=True, download=True,
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
+    
+in_test_dataset = datasets.CIFAR10('data', train=False, download=True,
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
 
-                    transform=transforms.Compose([
-                        transforms.Resize((32,32)),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-                    ]), data_root=opt.adv_data_root)
-
-in_test_dataset = CIFAR10(root=opt.dataroot, shift=opt.shift, scale=(opt.shrink, opt.enlarge), fillcolor=(128,128,128), download=True, train=False, resample=PIL.Image.BILINEAR,
-                           matrix_transform=transforms.Compose([
-                               transforms.Normalize((0., 0., 16., 0., 0., 16., 0., 0.), (1., 1., 20., 1., 1., 20., 0.015, 0.015)),
-                           ]),
-                           transform_pre=None,
-                           
-                           transform=transforms.Compose([
-                               transforms.ToTensor(),
-                               transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-                           ]), cal=False, proper_train_size=opt.proper_train_size)
-
-cal_dataset = CIFAR10(root=opt.dataroot, shift=opt.shift, scale=(opt.shrink, opt.enlarge), fillcolor=(128,128,128), download=True, train=False, resample=PIL.Image.BILINEAR,
-                           matrix_transform=transforms.Compose([
-                               transforms.Normalize((0., 0., 16., 0., 0., 16., 0., 0.), (1., 1., 20., 1., 1., 20., 0.015, 0.015)),
-                           ]),
-
-                           transform_pre=None,
-
-                           transform=transforms.Compose([
-                               transforms.ToTensor(),
-                               transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-                           ]), cal=True, proper_train_size=opt.proper_train_size)
-
-train_dataset = CIFAR10(root=opt.dataroot, shift=opt.shift, scale=(opt.shrink, opt.enlarge), fillcolor=(128,128,128), download=True, train=True, resample=PIL.Image.BILINEAR,
-                           matrix_transform=transforms.Compose([
-                               transforms.Normalize((0., 0., 16., 0., 0., 16., 0., 0.), (1., 1., 20., 1., 1., 20., 0.015, 0.015)),
-                           ]),
-
-                           transform_pre=None,
-
-                           transform=transforms.Compose([
-                               transforms.ToTensor(),
-                               transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-                           ]), cal=False, proper_train_size=opt.proper_train_size)
-
+train_dataset = torch.utils.data.Subset(complete_train_dataset, list(range(45000)))
+cal_dataset = torch.utils.data.Subset(complete_train_dataset, list(range(45000, 50000)))
 
 cal_dataloader = torch.utils.data.DataLoader(cal_dataset, batch_size=opt.batchSize,
-                                        shuffle=False, num_workers=int(opt.workers))
+                                            shuffle=False, num_workers=int(opt.workers))
 
 train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batchSize,
-                                        shuffle=False, num_workers=int(opt.workers))                                        
+                                        shuffle=False, num_workers=int(opt.workers)) 
 
 in_test_dataloader = torch.utils.data.DataLoader(in_test_dataset, batch_size=opt.batchSize,
-                                        shuffle=False, num_workers=int(opt.workers))
+                                        shuffle=False, num_workers=int(opt.workers)) 
+
+if opt.ood_dataset == 'IMAGENET':
+    ood_test_dataset = datasets.ImageFolder(os.path.join('data', 'Imagenet_resize'), 
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
+elif opt.ood_dataset == 'LSUN':
+    ood_test_dataset = datasets.ImageFolder(os.path.join('data', 'LSUN_resize'), 
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
+elif opt.ood_dataset == 'iSUN':
+    ood_test_dataset = datasets.ImageFolder(os.path.join('data', 'iSUN'), 
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
+elif opt.ood_dataset == 'SVHN':
+    ood_test_dataset = datasets.SVHN(root = 'data', split='test',  download=True,
+                   transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    ]))
 
 out_test_dataloader = torch.utils.data.DataLoader(ood_test_dataset, batch_size=opt.batchSize,
-                                        shuffle=False, num_workers=int(opt.workers))
+                                        shuffle=False, num_workers=int(opt.workers)) 
 
 criterion = nn.MSELoss()
 
@@ -416,6 +408,56 @@ def get_all_stats(net, device, stats_list, trial):
 
     return cal_set_stats, in_set_stats, ood_set_stats
 
+
+def get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis']):
+
+    # print('Running Multiple testing with {}'.format(stats_list))
+    tnr_list = []
+    fpr_list = []
+    
+    alpha_list = np.arange(0.01,1,0.01)
+    # alpha_list = [0.01, 0.02, 0.03, 0.04, 0.05]
+    for a in alpha_list:
+        
+        sum_K = 0
+        for i in range(len(stats_list)):
+            sum_K += 1/(1+i)
+        alpha_prime = a / (2 * sum_K)
+        
+        
+        trial = 0
+        cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list, trial)
+        num_stats = np.shape(cal_set_stats)[1]
+        in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
+        ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
+        for i in range(num_stats):
+            in_p_values[:,i] = calc_p_values(in_set_stats[:,i], cal_set_stats[:,i])
+            ood_p_values[:,i] = calc_p_values(ood_set_stats[:,i], cal_set_stats[:,i])
+
+        in_p_values.sort(axis = 1)
+        ood_p_values.sort(axis = 1)
+        val_alphas = np.zeros((num_stats))
+        alpha = alpha_prime
+        
+        consts = np.zeros((num_stats))
+        for i in range(num_stats):
+            consts[i] = alpha*(i+1)/num_stats
+                #consts[i] = max(alpha*(i+1)/n,val_alphas[i]*(i+1)/n)
+        
+        ood_bh_output = bh(num_stats,consts,ood_p_values)
+        tnr = np.mean(ood_bh_output)*100
+        in_dist_bh_output = bh(num_stats,consts,in_p_values)
+        fpr = np.mean(in_dist_bh_output)*100
+        # print(tnr)
+        print(fpr)
+        tnr_list.append(tnr)
+        fpr_list.append(fpr)
+
+    with open('CIFAR10_DenseNet_FPR.npy', 'wb') as f:
+        np.save(f, fpr_list)
+    return tnr_list, fpr_list
+
+
 def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
 
     print('Running Multiple testing with {}'.format(stats_list))
@@ -638,79 +680,81 @@ def get_auroc_Mahalanobis(net, device):
 
 
 if __name__ == "__main__":  
-    if not os.path.exists('results'):
-        os.mkdir('results')
-    if not os.path.exists('results/Densenet_CIFAR10.csv'):
-        with open("results/Densenet_CIFAR10.csv", "w") as f:
-            wf = writer(f)
-            wf.writerow(['method', 'stats list', opt.ood_dataset, 'fpr','tnr', 'other params'])
-            f.close()
-    if not os.path.exists('results/auroc_DenseNet_CIFAR10.csv'):
-        with open("results/auroc_DenseNet_CIFAR10.csv", "w") as f:
-            wf = writer(f)
-            wf.writerow(['method', 'stats list', opt.ood_dataset, 'auroc'])
-            f.close()
+
+    tnr_list, fpr_list = get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis', 'gram3', 'energy'])
+    # if not os.path.exists('results'):
+    #     os.mkdir('results')
+    # if not os.path.exists('results/Densenet_CIFAR10.csv'):
+    #     with open("results/Densenet_CIFAR10.csv", "w") as f:
+    #         wf = writer(f)
+    #         wf.writerow(['method', 'stats list', opt.ood_dataset, 'fpr','tnr', 'other params'])
+    #         f.close()
+    # if not os.path.exists('results/auroc_DenseNet_CIFAR10.csv'):
+    #     with open("results/auroc_DenseNet_CIFAR10.csv", "w") as f:
+    #         wf = writer(f)
+    #         wf.writerow(['method', 'stats list', opt.ood_dataset, 'auroc'])
+    #         f.close()
     
-    tnr_list, fpr_list = check_OOD_Mahalanobis(net, device,num_output - 1)
-    with open("results/Densenet_CIFAR10.csv", "a") as f:
-        wf = writer(f)
-        wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
-        f.close()
+    # tnr_list, fpr_list = check_OOD_Mahalanobis(net, device,num_output - 1)
+    # with open("results/Densenet_CIFAR10.csv", "a") as f:
+    #     wf = writer(f)
+    #     wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
+    #     f.close()
     
-    tnr_list, fpr_list = check_OOD_energy(net, device)
-    with open("results/Densenet_CIFAR10.csv", "a") as f:
-         wf = writer(f)
-         wf.writerow(['energy', ['energy'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), opt.energy_temperature])
-         f.close()
-    tnr_list, fpr_list = check_OOD_gram(net, device)
-    with open("results/Densenet_CIFAR10.csv", "a") as f:
-         wf = writer(f)
-         wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 100.0])
-         f.close()
+    # tnr_list, fpr_list = check_OOD_energy(net, device)
+    # with open("results/Densenet_CIFAR10.csv", "a") as f:
+    #      wf = writer(f)
+    #      wf.writerow(['energy', ['energy'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), opt.energy_temperature])
+    #      f.close()
+    # tnr_list, fpr_list = check_OOD_gram(net, device)
+    # with open("results/Densenet_CIFAR10.csv", "a") as f:
+    #      wf = writer(f)
+    #      wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 100.0])
+    #      f.close()
    
-    # Note that the threshold in line 445 and 447 needs to be changed for each combination to control TPR appropriately 
+    # # Note that the threshold in line 445 and 447 needs to be changed for each combination to control TPR appropriately 
 
-    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'energy'], ['gram3', 'energy'],  ['Mahalanobis', 'gram3', 'energy']]
-    # list_of_stats_list = [['Mahalanobis', 'energy']]
-    # list_of_stats_list = [['gram', 'energy'], ['gram3', 'energy'], ['Mahalanobis', 'gram', 'energy'], ['Mahalanobis', 'gram3', 'energy']]
-    # stats_list = ['gram3','energy']
-    for stats_list in list_of_stats_list:
-        tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
-        with open("results/Densenet_CIFAR10.csv", "a") as f:
-            wf = writer(f)
-            wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
-            f.close()
+    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'energy'], ['gram3', 'energy'],  ['Mahalanobis', 'gram3', 'energy']]
+    # # list_of_stats_list = [['Mahalanobis', 'energy']]
+    # # list_of_stats_list = [['gram', 'energy'], ['gram3', 'energy'], ['Mahalanobis', 'gram', 'energy'], ['Mahalanobis', 'gram3', 'energy']]
+    # # stats_list = ['gram3','energy']
+    # for stats_list in list_of_stats_list:
+    #     tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
+    #     with open("results/Densenet_CIFAR10.csv", "a") as f:
+    #         wf = writer(f)
+    #         wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
+    #         f.close()
 
 
-    fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
-    auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-        wf = writer(f)
-        wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
-        f.close()
+    # fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
+    # auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+    #     wf = writer(f)
+    #     wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
+    #     f.close()
 
-    fpr_list, tpr_list = get_auroc_gram(net, device)
-    auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-        wf = writer(f)
-        wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
-        f.close()
+    # fpr_list, tpr_list = get_auroc_gram(net, device)
+    # auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+    #     wf = writer(f)
+    #     wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
+    #     f.close()
 
-    fpr_list, tpr_list = get_auroc_energy(net, device)
-    auroc = np.trapz(1.0 - np.array(fpr_list), tpr_list)
-    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-        wf = writer(f)
-        wf.writerow(['Energy', 'Energy', opt.ood_dataset, auroc])
-        f.close()
+    # fpr_list, tpr_list = get_auroc_energy(net, device)
+    # auroc = np.trapz(1.0 - np.array(fpr_list), tpr_list)
+    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+    #     wf = writer(f)
+    #     wf.writerow(['Energy', 'Energy', opt.ood_dataset, auroc])
+    #     f.close()
 
-    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'gram','energy']]
-    #list_of_stats_list = [['Mahalanobis', 'gram', 'energy']]
-    for stats_list in list_of_stats_list:
-        fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
+    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'gram','energy']]
+    # #list_of_stats_list = [['Mahalanobis', 'gram', 'energy']]
+    # for stats_list in list_of_stats_list:
+    #     fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
         
-        auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-        print(auroc)
-        with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-            wf = writer(f)
-            wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
-            f.close()
+    #     auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    #     print(auroc)
+    #     with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+    #         wf = writer(f)
+    #         wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
+    #         f.close()
