@@ -1,4 +1,4 @@
-# python check_OOD_DenseNet.py --cuda --gpu 1 --net ./densenet_cifar10.pth --n 5 --ood_dataset LSUN --proper_train_size 45000 --trials 1
+# python check_OOD_DenseNet.py --cuda --gpu 1 --net ./densenet_cifar10.pth --ood_dataset LSUN 
 
 from __future__ import print_function
 import argparse
@@ -75,10 +75,10 @@ parser.add_argument('--enlarge', type=float, default=1.2)
 
 parser.add_argument('--gpu', default='0', type=str, help='id(s) for CUDA_VISIBLE_DEVICES')
 
-parser.add_argument('--trials', type=int, default=5, help='no. of trials for taking average for the final results')
+parser.add_argument('--trials', type=int, default=1, help='no. of trials for taking average for the final results')
 
 # OOD detection params
-parser.add_argument('--n', type=int, default=20, help='no. of transformations')
+parser.add_argument('--n', type=int, default=5, help='no. of transformations')
 parser.add_argument('--proper_train_size', default=45000, type=int, help='proper training dataset size')
 parser.add_argument('--ood_dataset', default='SVHN', help='SVHN/IMAGENET/CIFAR100/LSUN/Places365/adv_cifar10')
 parser.add_argument('--energy_temperature', type=float, default = 100.0, help = 'Energy temperature')
@@ -449,7 +449,6 @@ def get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis']):
         in_dist_bh_output = bh(num_stats,consts,in_p_values)
         fpr = np.mean(in_dist_bh_output)*100
         # print(tnr)
-        print(fpr)
         tnr_list.append(tnr)
         fpr_list.append(fpr)
 
@@ -467,9 +466,9 @@ def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
     for trial in range(opt.trials):
         print('Trial: {}'.format(trial))
         cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list, trial)
-        print(np.shape(cal_set_stats))
-        print(np.shape(in_set_stats))
-        print(np.shape(ood_set_stats))
+        # print(np.shape(cal_set_stats))
+        # print(np.shape(in_set_stats))
+        # print(np.shape(ood_set_stats))
         num_stats = np.shape(cal_set_stats)[1]
         in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
         ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
@@ -491,13 +490,13 @@ def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
                 #val_alphas[i] = temp_p_vals[int(len(temp_p_vals)*0.095)]*n/(i+1)
             #else:
             #val_alphas[i] = temp_p_vals[int(len(temp_p_vals)*0.045)]*n/(i+1)
-        print(val_alphas)
+        # print(val_alphas)
         alpha = min(val_alphas)
         consts = np.zeros((num_stats))
         for i in range(num_stats):
             consts[i] = alpha*(i+1)/num_stats
             #consts[i] = max(alpha*(i+1)/n,val_alphas[i]*(i+1)/n)
-        print(consts)
+        # print(consts)
         ood_bh_output = bh(num_stats,consts,ood_p_values)
         tnr = np.mean(ood_bh_output)*100
         in_dist_bh_output = bh(num_stats,consts,in_p_values)
@@ -516,9 +515,9 @@ def get_auroc_multiple_test(net, device, stats_list = ['Mahalanobis']):
     fpr_list = []
     threshold = np.linspace(99,1,100)/100.0
     cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list, 0)
-    print(np.shape(cal_set_stats))
-    print(np.shape(in_set_stats))
-    print(np.shape(ood_set_stats))
+    # print(np.shape(cal_set_stats))
+    # print(np.shape(in_set_stats))
+    # print(np.shape(ood_set_stats))
     num_stats = np.shape(cal_set_stats)[1]
     in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
     ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
@@ -681,80 +680,89 @@ def get_auroc_Mahalanobis(net, device):
 
 if __name__ == "__main__":  
 
-    tnr_list, fpr_list = get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis', 'gram3', 'energy'])
-    # if not os.path.exists('results'):
-    #     os.mkdir('results')
-    # if not os.path.exists('results/Densenet_CIFAR10.csv'):
-    #     with open("results/Densenet_CIFAR10.csv", "w") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['method', 'stats list', opt.ood_dataset, 'fpr','tnr', 'other params'])
-    #         f.close()
-    # if not os.path.exists('results/auroc_DenseNet_CIFAR10.csv'):
-    #     with open("results/auroc_DenseNet_CIFAR10.csv", "w") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['method', 'stats list', opt.ood_dataset, 'auroc'])
-    #         f.close()
     
-    # tnr_list, fpr_list = check_OOD_Mahalanobis(net, device,num_output - 1)
-    # with open("results/Densenet_CIFAR10.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
-    #     f.close()
+    if not os.path.exists('results'):
+        os.mkdir('results')
+    if not os.path.exists('results/Densenet_CIFAR10.csv'):
+        with open("results/Densenet_CIFAR10.csv", "w") as f:
+            wf = writer(f)
+            wf.writerow(['method', 'stats list', 'ood dataset', 'fpr','tnr', 'other params'])
+            f.close()
+    if not os.path.exists('results/auroc_DenseNet_CIFAR10.csv'):
+        with open("results/auroc_DenseNet_CIFAR10.csv", "w") as f:
+            wf = writer(f)
+            wf.writerow(['method', 'stats list', 'ood dataset', 'auroc'])
+            f.close()
     
-    # tnr_list, fpr_list = check_OOD_energy(net, device)
-    # with open("results/Densenet_CIFAR10.csv", "a") as f:
-    #      wf = writer(f)
-    #      wf.writerow(['energy', ['energy'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), opt.energy_temperature])
-    #      f.close()
-    # tnr_list, fpr_list = check_OOD_gram(net, device)
-    # with open("results/Densenet_CIFAR10.csv", "a") as f:
-    #      wf = writer(f)
-    #      wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 100.0])
-    #      f.close()
+    #Getting TNR results
+    #Running test for penultimate Mahalanobis baseline
+    tnr_list, fpr_list = check_OOD_Mahalanobis(net, device,num_output - 1)
+    with open("results/Densenet_CIFAR10.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
+        f.close()
+    
+    #Running test for Energy baseline
+    tnr_list, fpr_list = check_OOD_energy(net, device)
+    with open("results/Densenet_CIFAR10.csv", "a") as f:
+         wf = writer(f)
+         wf.writerow(['energy', ['energy'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), opt.energy_temperature])
+         f.close()
+
+    #Running test for Gram baseline
+    tnr_list, fpr_list = check_OOD_gram(net, device)
+    with open("results/Densenet_CIFAR10.csv", "a") as f:
+         wf = writer(f)
+         wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 100.0])
+         f.close()
    
-    # # Note that the threshold in line 445 and 447 needs to be changed for each combination to control TPR appropriately 
+    # Note that the threshold in line 445 and 447 needs to be changed for each combination to control TPR appropriately 
 
-    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'energy'], ['gram3', 'energy'],  ['Mahalanobis', 'gram3', 'energy']]
-    # # list_of_stats_list = [['Mahalanobis', 'energy']]
-    # # list_of_stats_list = [['gram', 'energy'], ['gram3', 'energy'], ['Mahalanobis', 'gram', 'energy'], ['Mahalanobis', 'gram3', 'energy']]
-    # # stats_list = ['gram3','energy']
-    # for stats_list in list_of_stats_list:
-    #     tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
-    #     with open("results/Densenet_CIFAR10.csv", "a") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
-    #         f.close()
+    #Running test for proposed method for all possible combinations 
+    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'energy'], ['gram3', 'energy'],  ['Mahalanobis', 'gram3', 'energy']]
+    for stats_list in list_of_stats_list:
+        tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
+        with open("results/Densenet_CIFAR10.csv", "a") as f:
+            wf = writer(f)
+            wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
+            f.close()
 
+    #Getting AUROC results
+    #Mahalanobis baseline
+    fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
+    auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
+        f.close()
 
-    # fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
-    # auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
-    #     f.close()
+    #Gram baseline
+    fpr_list, tpr_list = get_auroc_gram(net, device)
+    auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
+        f.close()
 
-    # fpr_list, tpr_list = get_auroc_gram(net, device)
-    # auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
-    #     f.close()
+    #Energy baseline
+    fpr_list, tpr_list = get_auroc_energy(net, device)
+    auroc = np.trapz(1.0 - np.array(fpr_list), tpr_list)
+    with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['Energy', 'Energy', opt.ood_dataset, auroc])
+        f.close()
 
-    # fpr_list, tpr_list = get_auroc_energy(net, device)
-    # auroc = np.trapz(1.0 - np.array(fpr_list), tpr_list)
-    # with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Energy', 'Energy', opt.ood_dataset, auroc])
-    #     f.close()
-
-    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'gram','energy']]
-    # #list_of_stats_list = [['Mahalanobis', 'gram', 'energy']]
-    # for stats_list in list_of_stats_list:
-    #     fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
+    #Proposed method for all possible combinations
+    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram'], ['Mahalanobis', 'gram','energy']]
+    for stats_list in list_of_stats_list:
+        fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
         
-    #     auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    #     print(auroc)
-    #     with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
-    #         f.close()
+        auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+        print(auroc)
+        with open("results/auroc_DenseNet_CIFAR10.csv", "a") as f:
+            wf = writer(f)
+            wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
+            f.close()
+
+    #Checking TPR with theoretical thresholds
+    tnr_list, fpr_list = get_false_alarm_multiple(net, device, stats_list = ['Mahalanobis', 'gram3', 'energy'])

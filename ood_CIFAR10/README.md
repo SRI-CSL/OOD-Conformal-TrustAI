@@ -14,6 +14,6 @@
     wget https://www.dropbox.com/s/pnbvr16gnpyr1zg/densenet_cifar10.pth
     
 ### To get results for ResNet34 run check_OOD_ResNet.py. Example command
-    python check_OOD_ResNet.py --cuda --gpu 0 --net ./resnet_cifar10.pth --n 5 --ood_dataset LSUN --proper_train_size 45000 --trials 1
+    python check_OOD_ResNet.py --cuda --gpu 0 --net ./resnet_cifar10.pth --ood_dataset LSUN 
 ### To get results for DenseNet run check_OOD_DenseNet.py. Example command
-    python check_OOD_DenseNet.py --cuda --gpu 1 --net ./densenet_cifar10.pth --n 5 --ood_dataset LSUN --proper_train_size 45000 --trials 1
+    python check_OOD_DenseNet.py --cuda --gpu 1 --net ./densenet_cifar10.pth --ood_dataset LSUN 
