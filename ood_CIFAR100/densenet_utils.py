@@ -150,7 +150,7 @@ def get_deviations_gram(net, device, data_loader, mins, maxs, power, num_output)
 
     data_ctr = 0
     for index, data in enumerate(data_loader, 0):
-        print(index)
+        # print(index)
         img1 = data[0].to(device)
         labels = data[1]
         out_features = []

@@ -307,9 +307,9 @@ def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
     print('Running Multiple testing with {}'.format(stats_list))
     
     cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list)
-    print(np.shape(cal_set_stats))
-    print(np.shape(in_set_stats))
-    print(np.shape(ood_set_stats))
+    # print(np.shape(cal_set_stats))
+    # print(np.shape(in_set_stats))
+    # print(np.shape(ood_set_stats))
     num_stats = np.shape(cal_set_stats)[1]
     in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
     ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
@@ -326,12 +326,12 @@ def check_OOD_multiple_test(net, device, stats_list = ['Mahalanobis']):
             val_alphas[i] = temp_p_vals[int(len(temp_p_vals)*0.105)]*num_stats/(i+1)
         else: 
             val_alphas[i] = temp_p_vals[int(len(temp_p_vals)*0.105)]*num_stats/(i+1)
-    print(val_alphas)
+    # print(val_alphas)
     alpha = min(val_alphas)
     consts = np.zeros((num_stats))
     for i in range(num_stats):
         consts[i] = alpha*(i+1)/num_stats
-    print(consts)
+    # print(consts)
     ood_bh_output = bh(num_stats,consts,ood_p_values)
     tnr = np.mean(ood_bh_output)*100
     in_dist_bh_output = bh(num_stats,consts,in_p_values)
@@ -348,9 +348,9 @@ def get_auroc_multiple_test(net, device, stats_list = ['Mahalanobis']):
     fpr_list = []
     threshold = np.linspace(99,1,100)/100.0
     cal_set_stats, in_set_stats, ood_set_stats = get_all_stats(net, device, stats_list)
-    print(np.shape(cal_set_stats))
-    print(np.shape(in_set_stats))
-    print(np.shape(ood_set_stats))
+    # print(np.shape(cal_set_stats))
+    # print(np.shape(in_set_stats))
+    # print(np.shape(ood_set_stats))
     num_stats = np.shape(cal_set_stats)[1]
     in_p_values = np.zeros((np.shape(in_set_stats)[0],np.shape(in_set_stats)[1]))
     ood_p_values =  np.zeros((np.shape(ood_set_stats)[0],np.shape(ood_set_stats)[1]))
@@ -439,8 +439,6 @@ def check_OOD_energy(net, device):
     
     return tnr, fpr
 
-
-
 def get_auroc_energy(net, device):
 
     print('Getting Energy AUROC')
@@ -522,79 +520,68 @@ def plot_energy_scores(net, device):
     plt.clf()
 
 if __name__ == "__main__":
-    check_OOD_energy(net, device)
-    # plot_energy_scores(net, device)
-    # if not os.path.exists('results'):
-    #     os.mkdir('results')
-
-    # if not os.path.exists('results/ResNet34_CIFAR100.csv'):
-    #     with open("results/ResNet34_CIFAR100.csv", "w") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['method', 'stats list', opt.ood_dataset, 'fpr','tnr', 'other params'])
-    #         f.close()
     
-    # tnr_list, fpr_list = check_OOD_Mahalanobis(net, device, num_output - 1)
-    # with open("results/ResNet34_CIFAR100.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
-    #     f.close()
+    if not os.path.exists('results'):
+        os.mkdir('results')
+
+    if not os.path.exists('results/ResNet34_CIFAR100.csv'):
+        with open("results/ResNet34_CIFAR100.csv", "w") as f:
+            wf = writer(f)
+            wf.writerow(['method', 'stats list', opt.ood_dataset, 'fpr','tnr', 'other params'])
+            f.close()
     
-    # # 
-    # # 
-    # tnr_list, fpr_list = check_OOD_energy(net, device)
-    # with open("results/ResNet34_CIFAR100.csv", "a") as f:
-    #      wf = writer(f)
-    #      wf.writerow(['energy', ['energy'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
-    #      f.close()
-    # tnr_list, fpr_list = check_OOD_gram(net, device)
-    # with open("results/ResNet34_CIFAR100.csv", "a") as f:
-    #      wf = writer(f)
-    #      wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
-    #      f.close()
+    #Getting TNR results
+    #Mahalanobis baseline
+    tnr_list, fpr_list = check_OOD_Mahalanobis(net, device, num_output - 1)
+    with open("results/ResNet34_CIFAR100.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['Mahalanobis', ['Mahalanobis'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
+        f.close()
+    #Gram baseline
+    tnr_list, fpr_list = check_OOD_gram(net, device)
+    with open("results/ResNet34_CIFAR100.csv", "a") as f:
+         wf = writer(f)
+         wf.writerow(['gram', ['gram'], opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), None])
+         f.close()
 
-    # # Note that the threshold in line 326 and 328 needs to be changed for each combination to control TPR appropriately 
+    # Note that the threshold in line 326 and 328 needs to be changed for each combination to control TPR appropriately 
+    #Proposed method with all possible combinations 
+    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram_all'] ]
+    for stats_list in list_of_stats_list:
+        tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
+        with open("results/ResNet34_CIFAR100.csv", "a") as f:
+            wf = writer(f)
+            wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
+            f.close()
 
-    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram_all'], ['Mahalanobis', 'gram_all','energy']]
-    # for stats_list in list_of_stats_list:
-    #     tnr_list, fpr_list = check_OOD_multiple_test(net, device, stats_list)
-    #     with open("results/ResNet34_CIFAR100.csv", "a") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['multiple', stats_list, opt.ood_dataset, np.mean(np.array(fpr_list)),np.mean(np.array(tnr_list)), 'none'])
-    #         f.close()
-
-    # if not os.path.exists('results/auroc_ResNet34_CIFAR100.csv'):
-    #     with open("results/auroc_ResNet34_CIFAR100.csv", "w") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['method', 'stats list', 'ood dataset', 'auroc'])
-    #         f.close()
+    #Getting AUROC results
+    if not os.path.exists('results/auroc_ResNet34_CIFAR100.csv'):
+        with open("results/auroc_ResNet34_CIFAR100.csv", "w") as f:
+            wf = writer(f)
+            wf.writerow(['method', 'stats list', 'ood dataset', 'auroc'])
+            f.close()
+    #Mahalanobis baseline
+    fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
+    auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+    with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
+        f.close()
+    #Gram baseline
+    fpr_list, tpr_list = get_auroc_gram(net, device)
+    auroc = np.trapz(1.0 - np.array([0.] +fpr_list), [0.] +tpr_list)
+    with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
+        wf = writer(f)
+        wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
+        f.close()
     
-    # fpr_list, tpr_list = get_auroc_Mahalanobis(net, device)
-    # auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    # with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Mahalanobis', 'Mahalanobis', opt.ood_dataset, auroc])
-    #     f.close()
-
-    # fpr_list, tpr_list = get_auroc_gram(net, device)
-    # auroc = np.trapz(1.0 - np.array([0.] +fpr_list), [0.] +tpr_list)
-    # with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['gram', 'gram', opt.ood_dataset, auroc])
-    #     f.close()
-
-    # fpr_list, tpr_list = get_auroc_energy(net, device)
-    # auroc = np.trapz(1.0 - np.array([0.] +fpr_list),[0.] + tpr_list)
-    # with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
-    #     wf = writer(f)
-    #     wf.writerow(['Energy', 'Energy', opt.ood_dataset, auroc])
-    #     f.close()
-
-    # list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'energy'], ['gram', 'energy'], ['Mahalanobis', 'gram_all'], ['Mahalanobis', 'gram_all','energy']]
-    # for stats_list in list_of_stats_list:
-    #     fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
-    #     auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
-    #     print(auroc)
-    #     with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
-    #         wf = writer(f)
-    #         wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
-    #         f.close()
+    #Proposed method with all possible combinations
+    list_of_stats_list = [['Mahalanobis'], ['gram'], ['Mahalanobis', 'gram_all']]
+    for stats_list in list_of_stats_list:
+        fpr_list, tpr_list = get_auroc_multiple_test(net, device, stats_list)
+        auroc = np.trapz(1.0 - np.array([0.] + fpr_list), [0.] + tpr_list)
+        print(auroc)
+        with open("results/auroc_ResNet34_CIFAR100.csv", "a") as f:
+            wf = writer(f)
+            wf.writerow(['Multiple', stats_list, opt.ood_dataset, auroc])
+            f.close()

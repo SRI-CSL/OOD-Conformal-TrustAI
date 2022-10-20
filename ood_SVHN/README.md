@@ -13,4 +13,7 @@ wget https://www.dropbox.com/s/9ol1h2tb3xjdpp1/densenet_svhn.pth?dl=0
     wget https://www.dropbox.com/s/ssz7qxfqae0cca5/iSUN.tar.gz
     tar -xf iSUN.tar.gz 
 
-    
+### To get results for ResNet34 run check_OOD_ResNet.py. Example command
+    python check_OOD_ResNet.py --cuda --gpu 0 --net ./resnet_svhn.pth --ood_dataset LSUN 
+### To get results for DenseNet run check_OOD_DenseNet.py. Example command
+    python check_OOD_DenseNet.py --cuda --gpu 1 --net ./densenet_svhn.pth --ood_dataset LSUN 
